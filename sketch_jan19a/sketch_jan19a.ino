@@ -1,24 +1,24 @@
 #include <WiFi.h>
-#include <time.h> // ספריית זמן
+#include <time.h> // Time library
 
-// הגדרות WiFi
-const char* ssid = "Daniel_iPhone"; // שם רשת ה-WiFi
-const char* password = "86998699"; // סיסמת ה-WiFi
+// WiFi settings
+const char* ssid = "Daniel_iPhone"; // WiFi network name
+const char* password = "86998699"; // WiFi password
 
-WiFiServer server(80); // יצירת שרת HTTP על פורט 80
+WiFiServer server(80); // Create an HTTP server on port 80
 
-// מאגר ההודעות
-String chatMessages[10];  // אחסון עד 10 הודעות אחרונות
-String timestamps[10];    // שמירת השעות של כל הודעה
-int messageIndex = 0;     // אינדקס להוספת הודעות חדשות
+// Message storage
+String chatMessages[10];  // Store up to 10 recent messages
+String timestamps[10];    // Store timestamps for each message
+int messageIndex = 0;     // Index for adding new messages
 
-// פין הנורה
+// LED pin
 const int ledPin = 22;
 
 void setup() {
   Serial.begin(115200);
 
-  // חיבור ל-WiFi
+  // Connect to WiFi
   Serial.print("Connecting to WiFi...");
   WiFi.begin(ssid, password);
 
@@ -31,11 +31,11 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  // הגדרת פין הנורה
+  // Set up the LED pin
   pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW); // כיבוי הנורה כברירת מחדל
+  digitalWrite(ledPin, LOW); // Turn off the LED by default
 
-  // הגדרת זמן NTP
+  // Set up NTP (Network Time Protocol)
   configTime(0, 0, "pool.ntp.org");
   Serial.println("Syncing time...");
   while (!time(nullptr)) {
@@ -44,16 +44,16 @@ void setup() {
   }
   Serial.println("\nTime synchronized!");
 
-  server.begin(); // הפעלת השרת
+  server.begin(); // Start the server
 }
 
 void loop() {
-  WiFiClient client = server.available(); // בדיקת חיבור לקוח
+  WiFiClient client = server.available(); // Check for client connection
   if (!client) {
     return;
   }
 
-  // קריאת כל הבקשה לדיבוג
+  // Read the client's request
   String request = "";
   while (client.available()) {
     char c = client.read();
@@ -62,21 +62,21 @@ void loop() {
   Serial.println("Request:");
   Serial.println(request);
 
-  // טיפול בבקשות favicon
+  // Ignore favicon requests
   if (request.indexOf("GET /favicon.ico") != -1) {
-    return; // התעלמות מבקשת favicon
+    return;
   }
 
-  // בדיקת אם יש הודעה חדשה מהמשתמש
+  // Check if there is a new message from the user
   if (request.indexOf("POST /chat") != -1) {
-    String newMessage = extractMessage(request); // חילוץ ההודעה מהבקשה
+    String newMessage = extractMessage(request); // Extract the message from the request
     if (newMessage.length() > 0) {
-      addMessage(newMessage); // הוספת ההודעה למאגר
-      flashLed(); // התראה על הודעה חדשה
+      addMessage(newMessage); // Add the message to the storage
+      flashLed(); // Notify with LED
     }
   }
 
-  // שליחת עמוד HTML
+  // Send the HTML page
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
   client.println();
@@ -93,7 +93,7 @@ void loop() {
   client.println("<body>");
   client.println("<h1>ESP32 Chat</h1>");
 
-  // הצגת ההודעות
+  // Display the messages
   client.println("<h2>Messages:</h2>");
   client.println("<div style='text-align: left; margin: 0 auto; width: 80%; border: 1px solid #ccc; padding: 10px;'>");
   for (int i = 0; i < 10; i++) {
@@ -103,7 +103,7 @@ void loop() {
   }
   client.println("</div>");
 
-  // טופס לשליחת הודעה
+  // Form to send a message
   client.println("<h2>Send a Message:</h2>");
   client.println("<form action='/chat' method='POST'>");
   client.println("<textarea name='message' placeholder='Write your message here...'></textarea><br>");
@@ -114,27 +114,27 @@ void loop() {
   client.println("</html>");
 }
 
-// פונקציה לחילוץ הודעה מבקשת HTTP
+// Function to extract a message from an HTTP request
 String extractMessage(String request) {
-  int bodyStart = request.indexOf("\r\n\r\n");
+  int bodyStart = request.indexOf("\r\n\r\n"); // Find the start of the request body
   if (bodyStart == -1) {
     return "";
   }
   String body = request.substring(bodyStart + 4);
-  int messageStart = body.indexOf("message=");
+  int messageStart = body.indexOf("message="); // Find the "message=" parameter
   if (messageStart == -1) {
     return "";
   }
   String message = body.substring(messageStart + 8);
-  message.replace("+", " ");
-  return urlDecode(message);
+  message.replace("+", " "); // Replace '+' with spaces
+  return urlDecode(message); // Decode URL-encoded characters
 }
 
-// פונקציה להוספת הודעה למאגר
+// Function to add a message to the storage
 void addMessage(String newMessage) {
   chatMessages[messageIndex] = newMessage;
 
-  // קבלת השעה הנוכחית
+  // Get the current time
   time_t now = time(nullptr);
   struct tm* timeInfo = localtime(&now);
   char timeString[20];
@@ -143,12 +143,12 @@ void addMessage(String newMessage) {
   timestamps[messageIndex] = String(timeString);
   Serial.println("Added message: " + newMessage + " at " + timestamps[messageIndex]);
 
-  messageIndex = (messageIndex + 1) % 10;
+  messageIndex = (messageIndex + 1) % 10; // Move to the next index (circular buffer)
 }
 
-// פונקציה להבהוב הנורה
+// Function to flash the LED
 void flashLed() {
-  for (int i = 0; i < 3; i++) { // הבהוב 3 פעמים
+  for (int i = 0; i < 3; i++) { // Flash 3 times
     digitalWrite(ledPin, HIGH);
     delay(300);
     digitalWrite(ledPin, LOW);
@@ -156,7 +156,7 @@ void flashLed() {
   }
 }
 
-// פונקציה לפענוח URL
+// Function to decode URL-encoded characters
 String urlDecode(String input) {
   String decoded = "";
   for (int i = 0; i < input.length(); i++) {
@@ -165,7 +165,7 @@ String urlDecode(String input) {
       decoded += char(code);
       i += 2;
     } else if (input[i] == '+') {
-      decoded += ' ';
+      decoded += ' '; // Replace '+' with space
     } else {
       decoded += input[i];
     }
