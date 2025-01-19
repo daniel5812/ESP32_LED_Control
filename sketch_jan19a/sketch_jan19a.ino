@@ -3,7 +3,7 @@
 
 // WiFi settings
 const char* ssid = "Daniel_iPhone"; // WiFi network name
-const char* password = "86998699"; // WiFi password
+const char* password = "12345"; // WiFi password
 
 WiFiServer server(80); // Create an HTTP server on port 80
 
